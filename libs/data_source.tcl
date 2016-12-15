@@ -1,5 +1,5 @@
 package require Itcl
-package require ParseOptions 1.0
+package require ParseOptions 2.0
 package require BLT
 
 # set graphene of text data source,
@@ -14,7 +14,8 @@ package require BLT
 #   -ccolors - list of colors for all data columns
 #   -cfmts   - list of format settings for all data columns
 #   -chides  - list of hide settings for all data columns
-#   -logs    - list of logscale settings for all data columns
+#   -clogs   - list of logscale settings for all data columns
+#   -verbose - be verbose
 #
 # File source:
 #  comments: #, %, ;
@@ -49,16 +50,16 @@ itcl::class DataSource {
   constructor {plot args} {
     # parse options
     set opts {
-      -name    name    {}
-      -conn    conn    {}
-      -ncols   ncols    1
-      -cnames  cnames  {}
-      -ctitles ctitles {}
-      -ccolors ccolors {}
-      -cfmts   cfmts   {}
-      -chides  chides  {}
-      -clogs   clogs   {}
-      -verbose verbose 1
+      -name    name    {} {file/db name}
+      -conn    conn    {} {graphene connection for a database source}
+      -ncols   ncols    1 {number of data columns (time column is not included)}
+      -cnames  cnames  {} {list of unique names for all data columns}
+      -ctitles ctitles {} {list of titles for all data columns}
+      -ccolors ccolors {} {list of colors for all data columns}
+      -cfmts   cfmts   {} {list of format settings for all data columns}
+      -chides  chides  {} {list of hide settings for all data columns}
+      -clogs   clogs   {} {list of logscale settings for all data columns}
+      -verbose verbose 1  {be verbose}
     }
     if {[catch {parse_options "graphene::data_source" \
       $args $opts} err]} { error $err }

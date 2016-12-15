@@ -1,5 +1,4 @@
 package require Itcl
-package require ParseOptions 1.0
 package require BLT
 
 # shift and rescale plots

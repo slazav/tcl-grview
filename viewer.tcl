@@ -1,7 +1,7 @@
 #!/usr/bin/wish
 
 package require Itcl
-package require ParseOptions 1.0
+package require ParseOptions 2.0
 package require xBlt 3
 package require Graphene
 
@@ -216,8 +216,8 @@ itcl::class viewer {
 
   method add_comments {args} {
     set opts {
-      -name    name    {}
-      -conn    conn    {}
+      -name    name    {} {name}
+      -conn    conn    {} {open database connection}
     }
     if {[catch {parse_options "graphene::viewer::add_fdata" \
       $args $opts} err]} { error $err }
@@ -229,8 +229,8 @@ itcl::class viewer {
 
   method add_ranges {args} {
     set opts {
-      -name    name    {}
-      -conn    conn    {}
+      -name    name    {} {}
+      -conn    conn    {} {}
     }
     if {[catch {parse_options "graphene::viewer::add_fdata" \
       $args $opts} err]} { error $err }
@@ -282,16 +282,16 @@ itcl::class viewer {
 graphene::viewer viewer
 set conn [graphene::open -db_path "."]
 
-viewer add_data\
-   -name     cpu_load.txt\
-   -cnames   {"load 1m" "load 5m" "load 10m"}\
-   -ctitles  {"CPU load, 10m average" "CPU load, 5m average" "CPU load, 1m average"}\
-   -ccolors  {}\
-   -cfmts    {%.3f %.3f %.3f}\
-   -ncols    3
+#viewer add_data\
+#   -name     cpu_load.txt\
+#   -cnames   {"load 1m" "load 5m" "load 10m"}\
+#   -ctitles  {"CPU load, 10m average" "CPU load, 5m average" "CPU load, 1m average"}\
+#   -ccolors  {}\
+#   -cfmts    {%.3f %.3f %.3f}\
+#   -ncols    3
 
 viewer add_data\
-   -name     cpu_temp\
+   -name     acpi/comp_temp\
    -conn     $conn\
    -cnames   {temp}\
    -ctitles  {CPU Temperature}\

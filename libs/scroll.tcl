@@ -1,5 +1,4 @@
 package require Itcl
-package require ParseOptions 1.0
 package require BLT
 
 # connects a scrollbar with a blt graph

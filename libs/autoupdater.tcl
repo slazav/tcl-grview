@@ -1,5 +1,5 @@
 package require Itcl
-package require ParseOptions 1.0
+package require ParseOptions 2.0
 
 # Class runs a function regularly.
 #
@@ -28,9 +28,9 @@ itcl::class autoupdater {
 
     # parse options
     set opts {
-      -state_var   state_var   state
-      -update_proc update_proc test_proc
-      -int_var     int_var     interval
+      -state_var   state_var   state      {variable which switches autoupdater}
+      -update_proc update_proc test_proc  {function to be run regularly}
+      -int_var     int_var     interval   {interval, ms}
     }
     if {[catch {parse_options "autoupdater" \
       $args $opts} err]} { error $err }

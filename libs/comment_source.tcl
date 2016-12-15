@@ -1,5 +1,5 @@
 package require Itcl
-package require ParseOptions 1.0
+package require ParseOptions 2.0
 package require BLT
 
 # set graphene of text comment source
@@ -8,6 +8,7 @@ package require BLT
 #   -name    - file/db name
 #   -conn    - graphene connection for a database source
 #   -color   - color
+#   -verbose - be verbose
 #
 # File source:
 #  comments: #, %, ;
@@ -24,10 +25,10 @@ itcl::class CommentSource {
   constructor {plot args} {
     # parse options
     set opts {
-      -name    name    {}
-      -conn    conn    {}
-      -color   color   black
-      -verbose verbose 1
+      -name    name      {} {file/db name}
+      -conn    conn      {} {raphene connection for a database source}
+      -color   color     black {color}
+      -verbose verbose   1 {be verbose}
     }
     if {[catch {parse_options "graphene::data_source" \
       $args $opts} err]} { error $err }

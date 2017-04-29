@@ -180,8 +180,8 @@ itcl::class DataSource {
     set curr_tmax  0
     set curr_maxdt 0
     if {$conn ne {}} { ## graphene db
-       set tmin [lindex [graphene::cmd $conn "get_next $name"] 0 0]
-       set tmax [lindex [graphene::cmd $conn "get_prev $name"] 0 0]
+       set tmin [lindex [$conn cmd get_next $name] 0 0]
+       set tmax [lindex [$conn cmd get_prev $name] 0 0]
     } else { ## file
       set fp [open $name r ]
       set tmin [lindex [get_next_line $fp] 0]
@@ -256,7 +256,7 @@ itcl::class DataSource {
     ## for a graphene db
     if {$conn ne {}} { ## graphene db
 
-      foreach line [graphene::cmd $conn "get_range $name $t1 $t2 $dt"] {
+      foreach line [$conn cmd get_range $name $t1 $t2 $dt] {
         # append data to vectors
         "$this:T" append [lindex $line 0]
         for {set i 0} {$i < $ncols} {incr i} {
@@ -297,4 +297,3 @@ itcl::class DataSource {
   method get_tmin  {} { return $tmin }
   method get_tmax  {} { return $tmax }
 }
-

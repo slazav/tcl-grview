@@ -3,7 +3,7 @@
 package require Itcl
 package require ParseOptions 2.0
 package require xBlt 3
-package require Graphene
+package require Device
 
 source libs/data_source.tcl
 source libs/comment_source.tcl
@@ -279,8 +279,10 @@ itcl::class viewer {
 }
 }
 
+
+set db_dev db_local
+Device $db_dev
 graphene::viewer viewer
-set conn [graphene::open -db_path "."]
 
 #viewer add_data\
 #   -name     cpu_load.txt\
@@ -292,7 +294,7 @@ set conn [graphene::open -db_path "."]
 
 viewer add_data\
    -name     acpi/comp_temp\
-   -conn     $conn\
+   -conn     $db_dev\
    -cnames   {temp}\
    -ctitles  {CPU Temperature}\
    -ccolors  {magenta}\

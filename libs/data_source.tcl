@@ -23,6 +23,7 @@ package require BLT
 set MIN_DATA_SIZE 4096
 
 itcl::class DataSource {
+  # these variables are set from options (see above)
   variable name
   variable conn
   variable ncols
@@ -32,22 +33,22 @@ itcl::class DataSource {
   variable cfmts
   variable chides
   variable clogs
+  variable verbose
 
-  # datasource values
+  # data min/max
+  variable tmin0
+  variable tmax0
+
+  # currently loaded min/max/step
   variable tmin
   variable tmax
-  variable fsize
+  variable maxdt
 
-  # current values
-  variable curr_tmin
-  variable curr_tmax
-  variable curr_maxdt
-
-  variable verbose
+  variable graph
 
   ######################################################################
 
-  constructor {plot args} {
+  constructor {graph_ args} {
     # parse options
     set opts {
       -name    name    {} {file/db name}
@@ -61,12 +62,12 @@ itcl::class DataSource {
       -clogs   clogs   {} {list of logscale settings for all data columns}
       -verbose verbose 1  {be verbose}
     }
+    set graph $graph_
     if {[catch {parse_options "graphene::data_source" \
       $args $opts} err]} { error $err }
 
     if {$verbose} {
       puts "Add data source \"$name\" with $ncols columns" }
-
 
     # create automatic column names
     for {set i [llength $cnames]} {$i < $ncols} {incr i} {
@@ -95,12 +96,13 @@ itcl::class DataSource {
       lappend clogs 0 }
 
     # find tmin/tmax
-    update_tlimits
+    update_tlimits $graph
+
     if {$verbose} {
-      puts " tmin: $tmin, tmax: $tmax" }
+      puts " tmin: $tmin0, tmax: $tmax0" }
     # we will load data by parts, so it is important to set global
     # limits into x axis scrollmin/scrollmax
-#    $plot axis configure x -scrollmin $tmin -scrollmax $tmax
+    $graph axis configure x -scrollmin $tmin0 -scrollmax $tmax0
 
     # create BLT vectors for data
     blt::vector create "$this:T"
@@ -118,16 +120,15 @@ itcl::class DataSource {
       set h [lindex $chides $i]
       set l [lindex $clogs $i]
       # create vertical axis and the element, bind them
-      $plot axis create $n -title $t -titlecolor black -logscale $l
-      $plot element create $n -mapy $n -symbol "" -color $c
-      $plot element bind $n <Enter> [list $plot yaxis use [list $n]]
+      $graph axis create $n -title $t -titlecolor black -logscale $l
+      $graph element create $n -mapy $n -symbol "" -color $c
+      $graph element bind $n <Enter> [list $graph yaxis use [list $n]]
       # hide element if needed
-      if {$h} {xblt::hielems::toggle_hide $plot $n}
+      if {$h} {xblt::hielems::toggle_hide $graph $n}
       # set data vectors for the element
-      $plot element configure $n -xdata "$this:T" -ydata "$this:$i"
+      $graph element configure $n -xdata "$this:T" -ydata "$this:$i"
       #
     }
-
   }
 
   ######################################################################
@@ -173,85 +174,56 @@ itcl::class DataSource {
 
   ######################################################################
   # find tmin/tmax and fsize (for text sources)
-  method update_tlimits {} {
-    set tmin 0
-    set tmax 0
-    set curr_tmin  0
-    set curr_tmax  0
-    set curr_maxdt 0
+  method update_tlimits {graph} {
+    set tmin0 0
+    set tmax0 0
+    set tmin  0
+    set tmax  0
+    set maxdt 0
     if {$conn ne {}} { ## graphene db
-       set tmin [lindex [$conn cmd get_next $name] 0 0]
-       set tmax [lindex [$conn cmd get_prev $name] 0 0]
+       set tmin0 [lindex [$conn cmd get_next $name] 0 0]
+       set tmax0 [lindex [$conn cmd get_prev $name] 0 0]
     } else { ## file
       set fp [open $name r ]
-      set tmin [lindex [get_next_line $fp] 0]
+      set tmin0 [lindex [get_next_line $fp] 0]
       seek $fp 0 end
       set fsize [tell $fp]
-      set tmax [lindex [get_prev_line $fp] 0]
+      set tmax0 [lindex [get_prev_line $fp] 0]
       close $fp
     }
   }
 
-  ######################################################################
-  # build position map for text sources
-  # should be run after update_tlimits
-  method update_pmap {} {
-    set pmap_size 4096
-
-    if {$conn ne {}} { return }
-
-    # open file, get its size
-    set fp [open $name r ]
-    seek $fp 0 end
-    set fsize [tell $fp]
-
-    # roughly estimate number of lines in the file
-    # if it is smaller then pmap_size - no need for a position map
-    if {[expr {$fsize/30}] < $pmap_size } {close $fp; return}
-
-    # max time step
-    set dt [expr {($tmax-$tmin)/$pmap_size}]
-
-    # get data
-    seek $fp 0 start
-    while {} {
-      set l [get_next_line $fp]
-    }
-    for {set i 0} {$i < $pmap_size} {incr $i} {
-      seek $fp [expr {$i*$fsize/$pmap_size}] start
-    }
-
-    close $fp
-  }
 
   ######################################################################
   # update data
   method update_data {x1 x2 N} {
     # x1,x2 = 0..1
-    set t1 [expr {int($tmin + ($tmax-$tmin)*$x1)}]
-    set t2 [expr {int($tmin + ($tmax-$tmin)*$x2)}]
+    set t1 [expr {int($tmin0 + ($tmax0-$tmin0)*$x1)}]
+    set t2 [expr {int($tmin0 + ($tmax0-$tmin0)*$x2)}]
     set dt [expr {int(($t2-$t1)/$N)}]
 
-    if {$t1 >= $curr_tmin && $t2 <= $curr_tmax && $dt >= $curr_maxdt} {return}
+    if {$t1 < $tmin0} {set t1 $tmin0}
+    if {$t2 > $tmax0} {set t2 $tmax0}
+    if {$t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
     if {$verbose} {
-      puts "update_data $t1 $t2 $dt $name" }
+      puts "update_data $x1 $x2 $N $dt $name" }
 
     # expand the range:
     set t1 [expr {$t1 - ($t2-$t1)}]
     set t2 [expr {$t2 + ($t2-$t1)}]
-    if {$t1 < $tmin} {set t1 $tmin}
-    if {$t2 < $tmax} {set t2 $tmax}
-    set curr_tmin $t1
-    set curr_tmax $t2
-    set curr_maxdt $dt
+    if {$t1 < $tmin0} {set t1 $tmin0}
+    if {$t2 > $tmax0} {set t2 $tmax0}
+    set tmin $t1
+    set tmax $t2
+    set maxdt   $dt
 
     # reset data vectors
-    "$this:T" append 0
-    "$this:T" delete 0:end
+    if {["$this:T" length] > 0} {"$this:T" delete 0:end}
     for {set i 0} {$i < $ncols} {incr i} {
-      "$this:$i" append 0
-      "$this:$i" delete 0:end
+      if {["$this:$i" length] > 0} {"$this:$i" delete 0:end}
     }
+
+puts "points: ["$this:T" length] $N"
 
     ## for a graphene db
     if {$conn ne {}} { ## graphene db
@@ -263,6 +235,7 @@ itcl::class DataSource {
           "$this:$i" append [lindex $line [expr $i+1]]
         }
       }
+puts "points read: ["$this:T" length]"
 
     ## for a text file
     } else {
@@ -290,10 +263,11 @@ itcl::class DataSource {
       }
       close $fp
     }
+
   }
 
   ######################################################################
   method get_ncols {} { return $ncols }
-  method get_tmin  {} { return $tmin }
-  method get_tmax  {} { return $tmax }
+  method get_tmin  {} { return $tmin0 }
+  method get_tmax  {} { return $tmax0 }
 }

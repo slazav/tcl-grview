@@ -5,8 +5,8 @@ package require ParseOptions 2.0
 package require xBlt 3
 package require Device
 
-source libs/data_source.tcl
-#source libs/comment_source.tcl
+source data_source.tcl
+#source comment_source.tcl
 
 namespace eval graphene {
 
@@ -105,6 +105,8 @@ itcl::class viewer {
   method add_data {args} {
     lappend data_sources [DataSource #auto $pwid {*}$args] }
 
+
+
   method add_comments {args} {
     set opts {
       -name    name    {} {name}
@@ -144,31 +146,3 @@ itcl::class viewer {
 
 }
 }
-
-
-set db_dev db_local
-Device $db_dev
-graphene::viewer viewer
-
-#viewer add_data\
-#   -name     cpu_load.txt\
-#   -cnames   {"load 1m" "load 5m" "load 10m"}\
-#   -ctitles  {"CPU load, 10m average" "CPU load, 5m average" "CPU load, 1m average"}\
-#   -ccolors  {}\
-#   -cfmts    {%.3f %.3f %.3f}\
-#   -ncols    3
-
-viewer add_data\
-   -name     acpi/comp_temp\
-   -conn     $db_dev\
-   -cnames   {temp}\
-   -ctitles  {CPU Temperature}\
-   -ccolors  {magenta}\
-   -cfmts    {%.2f}\
-   -ncols    1
-
-viewer add_comments\
-   -name cpu_comm.txt
-
-viewer on_change 0 1 0 0 1024
-

@@ -121,7 +121,7 @@ itcl::class DataSource {
       set l [lindex $clogs $i]
       # create vertical axis and the element, bind them
       $graph axis create $n -title $t -titlecolor black -logscale $l
-      $graph element create $n -mapy $n -symbol "" -color $c
+      $graph element create $n -mapy $n -symbol circle -pixels 1.5 -color $c
       $graph element bind $n <Enter> [list $graph yaxis use [list $n]]
       # hide element if needed
       if {$h} {xblt::hielems::toggle_hide $graph $n}

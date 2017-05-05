@@ -7,6 +7,7 @@ package require ParseOptions 2.0
 #  -state_var     -- variable which switches autoupdater
 #  -update_proc   -- function to be run regularly
 #  -interval      -- interval, ms
+#  -int_var       -- external variable for the interval
 #
 # slazav, 2016-09-20
 
@@ -30,7 +31,8 @@ itcl::class autoupdater {
     set opts {
       -state_var   state_var   state      {variable which switches autoupdater}
       -update_proc update_proc test_proc  {function to be run regularly}
-      -int_var     int_var     interval   {interval, ms}
+      -int_var     int_var     interval   {external variable for the interval}
+      -interval    interval    1000       {interval, ms}
     }
     if {[catch {parse_options "autoupdater" \
       $args $opts} err]} { error $err }
@@ -50,7 +52,7 @@ itcl::class autoupdater {
     set i [set $int_var]
 
     if { $s } {
-      $update_proc
+      if {$update_proc != ""} { uplevel \#0 [eval $update_proc] }
       set update_id [after $i "$this auto_update {} {} {}"]
     }
   }

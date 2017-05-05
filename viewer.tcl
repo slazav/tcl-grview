@@ -6,7 +6,7 @@ package require xBlt 3
 package require Device
 
 source data_source.tcl
-#source comment_source.tcl
+source autoupdater.tcl
 
 namespace eval graphene {
 
@@ -15,72 +15,71 @@ itcl::class viewer {
 
   variable data_sources; # data source objects
 
-  # Range source
-  # contain fields:
-  # - name - file/db name
-  # - conn - graphene connection for a database source
-    variable ranges
-
-  # Comment source
-  # contain fields:
-  # - name - file/db name
-  # - conn - graphene connection for a database source
-    variable comments
-
   # widgets: root, plot, top menu, scrollbar:
-    variable rwid
-    variable pwid
-    variable mwid
-    variable swid
+  variable rwid
+  variable graph
+  variable mwid
+  variable swid
 
-  # updater handler
-    variable updater
+  variable maxwidth;  # max window size
+  variable update_interval;
 
   ######################################################################
 
   constructor {} {
     set data_sources {}
-    set names     {}
-    set comments  {}
-    set ranges    {}
-    set update_state 0
+    set update_interval 2000
+    set maxwidth     1500
 
     ### create and pack interface elements:
 #    set rwid $root_widget
     set rwid {}
     if {$rwid ne {}} {frame $rwid}
-    set pwid $rwid.p
+    set graph $rwid.p
     set mwid $rwid.f
     set swid $rwid.sb
 
+    ## upper menu frame
     frame $mwid
     button $mwid.exit -command "$this finish" -text Exit
     pack $mwid.exit -side right -padx 2
     pack $mwid -side top -fill x -padx 4 -pady 4
+
+    ## autoupdate checkbutton
+    checkbutton $mwid.autoupdate -text "Auto update" -variable autoupdate
+    pack $mwid.autoupdate -side right -padx 2
+    autoupdater #auto\
+      -state_var ::autoupdate\
+      -interval  $update_interval\
+      -update_proc [list $this update]\
+
+
+    ## scrollbar
     scrollbar $swid -orient horizontal
     pack $swid -side bottom -fill x
 
-    ## set window size
+    ## set graph size
     set swidth [winfo screenwidth .]
-    set pwidth [expr {$swidth - 80}]
-    if {$pwidth > 1520} {set pwidth 1520}
+    set graphth [expr {$swidth - 80}]
+    if {$graphth > $maxwidth} {set graphth $maxwidth}
 
-    blt::graph $pwid -width $pwidth -height 600 -leftmargin 60
-    pack $pwid -side top -expand yes -fill both
+    ## main graph
+    blt::graph $graph -width $graphth -height 600 -leftmargin 60
+    pack $graph -side top -expand yes -fill both
 
-    $pwid legend configure -activebackground white
+    $graph legend configure -activebackground white
 
     # configure standard xBLT things:
-    xblt::plotmenu   $pwid -showbutton 1 -buttonlabel Menu -buttonfont {Helvetica 12} -menuoncanvas 0
-    xblt::legmenu    $pwid
-    xblt::hielems    $pwid
-    xblt::crosshairs $pwid -variable v_crosshairs
-    xblt::measure    $pwid
-    xblt::readout    $pwid -variable v_readout -active 1;
-    xblt::zoomstack  $pwid -scrollbutton 2 -axes x -recttype x
-    xblt::elemop     $pwid
-    xblt::scroll     $pwid $swid -on_change [list $this on_change] -timefmt 1
-    xblt::xcomments  $pwid
+    xblt::plotmenu   $graph -showbutton 1 -buttonlabel Menu -buttonfont {Helvetica 12} -menuoncanvas 0
+    xblt::legmenu    $graph
+    xblt::hielems    $graph
+    xblt::crosshairs $graph -variable v_crosshairs
+    xblt::measure    $graph
+    xblt::readout    $graph -variable v_readout -active 1;
+    xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
+    xblt::elemop     $graph
+    xblt::scroll     $graph $swid -on_change [list $this on_change] -timefmt 1
+    xblt::xcomments  $graph
 
     bind . <Alt-Key-q>     "$this finish"
     bind . <Control-Key-q> "$this finish"
@@ -91,56 +90,45 @@ itcl::class viewer {
   }
 
   ######################################################################
-  method message {args} {
-    puts "$args"
-  }
-  method show_rect {graph x1 x2 y1 y2} {
-    puts " rect selected $x1 -- $x2"
-  }
-
-
-  ######################################################################
 
   # add data source
   method add_data {args} {
-    lappend data_sources [DataSource #auto $pwid {*}$args] }
-
-
-
-  method add_comments {args} {
-    set opts {
-      -name    name    {} {name}
-      -conn    conn    {} {open database connection}
-    }
-    if {[catch {parse_options "graphene::viewer::add_fdata" \
-      $args $opts} err]} { error $err }
-    set comments [dict create\
-      name $name\
-      conn $conn\
-    ]
+    set ds [DataSource #auto $graph {*}$args]
+    expand_range {*}[$ds range]
+    lappend data_sources $ds
   }
 
-  method add_ranges {args} {
-    set opts {
-      -name    name    {} {}
-      -conn    conn    {} {}
-    }
-    if {[catch {parse_options "graphene::viewer::add_fdata" \
-      $args $opts} err]} { error $err }
-    set ranges [dict create\
-      name $name\
-      conn $conn\
-    ]
+  ## expand global range
+  method expand_range {min max} {
+    set mino [$graph axis cget x -scrollmin]
+    set maxo [$graph axis cget x -scrollmax]
+    if {$min != {} && ($mino=={} || $mino > $min)} {
+      $graph axis configure x -scrollmin $min }
+    if {$max != {} && ($maxo=={} || $maxo < $max)} {
+      $graph axis configure x -scrollmax $max }
   }
 
-  ######################################################################
-
+  ## This function is called after zooming the graph.
+  ## It loads data, but did not update plot limits.
   method on_change {x1 x2 t1 t2 w} {
     foreach d $data_sources {
-      $d update_data $x1 $x2 $w
+      $d update_data $t1 $t2 $w
     }
   }
 
+  method full_scale {} {
+    set min [$graph axis cget x -scrollmin]
+    set max [$graph axis cget x -scrollmax]
+    on_change 0 0 $min $max $maxwidth
+  }
+
+  ## This function is called from autoupdater
+  method update {} {
+    set now [expr [clock milliseconds]/1000.0]
+    expand_range {} $now
+    foreach d $data_sources { $d reset_data_info}
+    xblt::scroll::cmd moveto 1
+  }
 
   method finish {} { exit }
 

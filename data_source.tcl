@@ -35,10 +35,6 @@ itcl::class DataSource {
   variable clogs
   variable verbose
 
-  # data min/max
-  variable tmin0
-  variable tmax0
-
   # currently loaded min/max/step
   variable tmin
   variable tmax
@@ -95,15 +91,6 @@ itcl::class DataSource {
     for {set i [llength $clogs]} {$i < $ncols} {incr i} {
       lappend clogs 0 }
 
-    # find tmin/tmax
-    update_tlimits $graph
-
-    if {$verbose} {
-      puts " tmin: $tmin0, tmax: $tmax0" }
-    # we will load data by parts, so it is important to set global
-    # limits into x axis scrollmin/scrollmax
-    $graph axis configure x -scrollmin $tmin0 -scrollmax $tmax0
-
     # create BLT vectors for data
     blt::vector create "$this:T"
     for {set i 0} {$i < $ncols} {incr i} {
@@ -129,6 +116,7 @@ itcl::class DataSource {
       $graph element configure $n -xdata "$this:T" -ydata "$this:$i"
       #
     }
+    reset_data_info
   }
 
   ######################################################################
@@ -171,15 +159,17 @@ itcl::class DataSource {
     return [get_line $fp]
   }
 
+  ######################################################################
+  ## call this if you want to update data even if it was loaded already
+  method reset_data_info {} {
+    set tmin 0
+    set tmax 0
+    set maxdt 0
+  }
 
   ######################################################################
-  # find tmin/tmax and fsize (for text sources)
-  method update_tlimits {graph} {
-    set tmin0 0
-    set tmax0 0
-    set tmin  0
-    set tmax  0
-    set maxdt 0
+  ## get data range
+  method range {} {
     if {$conn ne {}} { ## graphene db
        set tmin0 [lindex [$conn cmd get_next $name] 0 0]
        set tmax0 [lindex [$conn cmd get_prev $name] 0 0]
@@ -191,28 +181,28 @@ itcl::class DataSource {
       set tmax0 [lindex [get_prev_line $fp] 0]
       close $fp
     }
+    return [list $tmin0 $tmax0]
   }
-
 
   ######################################################################
   # update data
-  method update_data {x1 x2 N} {
-    # x1,x2 = 0..1
-    set t1 [expr {int($tmin0 + ($tmax0-$tmin0)*$x1)}]
-    set t2 [expr {int($tmin0 + ($tmax0-$tmin0)*$x2)}]
+  method update_data {t1 t2 N} {
+#    # x1,x2 = 0..1
+#    set t1 [expr {int($tmin0 + ($tmax0-$tmin0)*$x1)}]
+#    set t2 [expr {int($tmin0 + ($tmax0-$tmin0)*$x2)}]
     set dt [expr {int(($t2-$t1)/$N)}]
 
-    if {$t1 < $tmin0} {set t1 $tmin0}
-    if {$t2 > $tmax0} {set t2 $tmax0}
+#    if {$t1 < $tmin0} {set t1 $tmin0}
+#    if {$t2 > $tmax0} {set t2 $tmax0}
     if {$t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
     if {$verbose} {
-      puts "update_data $x1 $x2 $N $dt $name" }
+      puts "update_data $t1 $t2 $N $dt $name" }
 
     # expand the range:
     set t1 [expr {$t1 - ($t2-$t1)}]
     set t2 [expr {$t2 + ($t2-$t1)}]
-    if {$t1 < $tmin0} {set t1 $tmin0}
-    if {$t2 > $tmax0} {set t2 $tmax0}
+#    if {$t1 < $tmin0} {set t1 $tmin0}
+#    if {$t2 > $tmax0} {set t2 $tmax0}
     set tmin $t1
     set tmax $t2
     set maxdt   $dt
@@ -222,8 +212,6 @@ itcl::class DataSource {
     for {set i 0} {$i < $ncols} {incr i} {
       if {["$this:$i" length] > 0} {"$this:$i" delete 0:end}
     }
-
-puts "points: ["$this:T" length] $N"
 
     ## for a graphene db
     if {$conn ne {}} { ## graphene db
@@ -235,7 +223,6 @@ puts "points: ["$this:T" length] $N"
           "$this:$i" append [lindex $line [expr $i+1]]
         }
       }
-puts "points read: ["$this:T" length]"
 
     ## for a text file
     } else {

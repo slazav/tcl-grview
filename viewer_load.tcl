@@ -14,8 +14,5 @@ viewer add_data\
    -cfmts    {%.3f %.3f %.3f}\
    -ncols    3
 
-viewer add_comments\
-   -name cpu_comm.txt
-
-viewer on_change 0 1 0 0 1024
+viewer full_scale
 

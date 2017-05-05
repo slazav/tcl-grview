@@ -135,11 +135,6 @@ itcl::class viewer {
     if {$comm_source!={}} { $comm_source update_data $t1 $t2 $w }
   }
 
-  method full_scale {} {
-    set min [$graph axis cget x -scrollmin]
-    set max [$graph axis cget x -scrollmax]
-    on_change 0 0 $min $max $maxwidth
-  }
 
   ## This function is called from autoupdater
   method update {} {
@@ -148,6 +143,24 @@ itcl::class viewer {
     foreach d $data_sources { $d reset_data_info}
     if {$comm_source!={}} { $comm_source reset_data_info }
     xblt::scroll::cmd moveto 1
+  }
+
+  method full_scale {} {
+    set min [$graph axis cget x -scrollmin]
+    set max [$graph axis cget x -scrollmax]
+    $graph axis configure x -min $min -max $max
+  }
+
+  method goto {date} {
+    set t1 [clock scan $date]
+    if     {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\S+\d{1,2}} $date]} { set dt 60}\
+    elseif {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}$} $date]} { set dt 3600}\
+    elseif {[ regexp {^\d{4}-\d{1,2}-\d{1,2}$} $date]} { set dt [expr 24*3600]}\
+    elseif {[ regexp {^\d{4}-{1,2}$} $date]} {set dt [expr 12*24*3600]; set t1 "$t1-01"}\
+    elseif {[ regexp {^\d{4}$} $date]} { set dt [expr 366*24*3600]}\
+    else { full_scale; return }
+    puts "goto $t1 [expr $t1+$dt]"
+    $graph axis configure x -min $t1 -max [expr $t1+$dt]
   }
 
   method finish {} { exit }

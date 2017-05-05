@@ -6,6 +6,7 @@ package require xBlt 3
 package require Device
 
 source data_source.tcl
+source comm_source.tcl
 source autoupdater.tcl
 
 namespace eval graphene {
@@ -14,6 +15,7 @@ namespace eval graphene {
 itcl::class viewer {
 
   variable data_sources; # data source objects
+  variable comm_source;  # comment source
 
   # widgets: root, plot, top menu, scrollbar:
   variable rwid
@@ -28,7 +30,8 @@ itcl::class viewer {
 
   constructor {} {
     set data_sources {}
-    set update_interval 2000
+    set comm_source {}
+    set update_interval 1000
     set maxwidth     1500
 
     ### create and pack interface elements:
@@ -79,7 +82,6 @@ itcl::class viewer {
     xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
     xblt::elemop     $graph
     xblt::scroll     $graph $swid -on_change [list $this on_change] -timefmt 1
-    xblt::xcomments  $graph
 
     bind . <Alt-Key-q>     "$this finish"
     bind . <Control-Key-q> "$this finish"
@@ -98,22 +100,39 @@ itcl::class viewer {
     lappend data_sources $ds
   }
 
+  # add comment source
+  method add_comm {args} {
+    set comm_source [CommSource #auto $graph {*}$args]
+    expand_range {*}[$comm_source range]
+  }
+
   ## expand global range
   method expand_range {min max} {
     set mino [$graph axis cget x -scrollmin]
     set maxo [$graph axis cget x -scrollmax]
     if {$min != {} && ($mino=={} || $mino > $min)} {
-      $graph axis configure x -scrollmin $min }
+      $graph axis configure x -scrollmin $min
+    } else {set min $mino}
     if {$max != {} && ($maxo=={} || $maxo < $max)} {
-      $graph axis configure x -scrollmax $max }
+      $graph axis configure x -scrollmax $max
+    } else {set max $maxo}
+
+    # change scrollbal position
+    if {$mino!={} && $maxo!={} && $min!={} && $max!={}} {
+      set sb [$swid get]
+      set sbmin [lindex $sb 0]
+      set sbmax [lindex $sb 1]
+      set sbmin [expr {($mino-$min + $sbmin*($maxo-$mino))/($max-$min)}]
+      set sbmax [expr {($mino-$min + $sbmax*($maxo-$mino))/($max-$min)}]
+      $swid set $sbmin $sbmax
+    }
   }
 
   ## This function is called after zooming the graph.
   ## It loads data, but did not update plot limits.
   method on_change {x1 x2 t1 t2 w} {
-    foreach d $data_sources {
-      $d update_data $t1 $t2 $w
-    }
+    foreach d $data_sources { $d update_data $t1 $t2 $w }
+    if {$comm_source!={}} { $comm_source update_data $t1 $t2 $w }
   }
 
   method full_scale {} {
@@ -127,6 +146,7 @@ itcl::class viewer {
     set now [expr [clock milliseconds]/1000.0]
     expand_range {} $now
     foreach d $data_sources { $d reset_data_info}
+    if {$comm_source!={}} { $comm_source reset_data_info }
     xblt::scroll::cmd moveto 1
   }
 

@@ -14,5 +14,9 @@ viewer add_data\
    -cfmts    {%.3f %.3f %.3f}\
    -ncols    3
 
+viewer add_comm\
+   -name     cpu_load_comm\
+   -conn     $db_dev\
+
 viewer full_scale
 

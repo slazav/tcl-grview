@@ -1,36 +1,22 @@
 package require Itcl
 package require ParseOptions 2.0
-package require BLT
+package require xBlt
 
-# set graphene or text data source,
-# update BLT vectors if needed.
+# set graphene of text comment source,
+# update data if needed.
 #
 # Options:
 #   -name    - file/db name
 #   -conn    - graphene connection for a database source
-#   -ncols   - number of data columns (time column is not included)
-#   -cnames  - list of unique names for all data columns (time is not included)
-#   -ctitles - list of titles for all data columns
-#   -ccolors - list of colors for all data columns
-#   -cfmts   - list of format settings for all data columns
-#   -chides  - list of hide settings for all data columns
-#   -clogs   - list of logscale settings for all data columns
 #   -verbose - be verbose
 #
 # File source:
 #  comments: #, %, ;
 
-itcl::class DataSource {
+itcl::class CommSource {
   # these variables are set from options (see above)
   variable name
   variable conn
-  variable ncols
-  variable cnames
-  variable ctitles
-  variable ccolors
-  variable cfmts
-  variable chides
-  variable clogs
   variable verbose
 
   # currently loaded min/max/step
@@ -47,73 +33,18 @@ itcl::class DataSource {
     set opts {
       -name    name    {} {file/db name}
       -conn    conn    {} {graphene connection for a database source}
-      -ncols   ncols    1 {number of data columns (time column is not included)}
-      -cnames  cnames  {} {list of unique names for all data columns}
-      -ctitles ctitles {} {list of titles for all data columns}
-      -ccolors ccolors {} {list of colors for all data columns}
-      -cfmts   cfmts   {} {list of format settings for all data columns}
-      -chides  chides  {} {list of hide settings for all data columns}
-      -clogs   clogs   {} {list of logscale settings for all data columns}
       -verbose verbose 1  {be verbose}
     }
     set graph $graph_
-    if {[catch {parse_options "graphene::data_source" \
+    if {[catch {parse_options "graphene::comment_source" \
       $args $opts} err]} { error $err }
 
     if {$verbose} {
-      puts "Add data source \"$name\" with $ncols columns" }
+      puts "Add comment source \"$name\"" }
 
-    # create automatic column names
-    for {set i [llength $cnames]} {$i < $ncols} {incr i} {
-      lappend cnames "$name:$i" }
 
-    # create automatic column titles
-    for {set i [llength $ctitles]} {$i < $ncols} {incr i} {
-      lappend ctitles "$name:$i" }
+    xblt::xcomments $graph -on_add [list $this on_add] -on_del [list $this on_del]
 
-    # create automatic column colors
-    set defcolors {red green blue cyan magenta yellow}
-    for {set i [llength $ccolors]} {$i < $ncols} {incr i} {
-      set c [lindex $defcolors [expr {$i%[llength $defcolors]} ] ]
-      lappend ccolors $c }
-
-    # create automatic format settings
-    for {set i [llength $cfmts]} {$i < $ncols} {incr i} {
-      lappend cfmts "%g" }
-
-    # show all columns by default
-    for {set i [llength $chides]} {$i < $ncols} {incr i} {
-      lappend chides 0 }
-
-    # non-log scale for all columns by default
-    for {set i [llength $clogs]} {$i < $ncols} {incr i} {
-      lappend clogs 0 }
-
-    # create BLT vectors for data
-    blt::vector create "$this:T"
-    for {set i 0} {$i < $ncols} {incr i} {
-      set n [lindex $cnames $i]
-      blt::vector create "$this:$i"
-    }
-
-    ## configure plot
-    for {set i 0} {$i < $ncols} {incr i} {
-      set n [lindex $cnames $i]
-      set t [lindex $ctitles $i]
-      set c [lindex $ccolors $i]
-      set f [lindex $cfmts $i]
-      set h [lindex $chides $i]
-      set l [lindex $clogs $i]
-      # create vertical axis and the element, bind them
-      $graph axis create $n -title $t -titlecolor black -logscale $l
-      $graph element create $n -mapy $n -symbol circle -pixels 1.5 -color $c
-      $graph element bind $n <Enter> [list $graph yaxis use [list $n]]
-      # hide element if needed
-      if {$h} {xblt::hielems::toggle_hide $graph $n}
-      # set data vectors for the element
-      $graph element configure $n -xdata "$this:T" -ydata "$this:$i"
-      #
-    }
     reset_data_info
   }
 
@@ -186,6 +117,7 @@ itcl::class DataSource {
   # update data
   method update_data {t1 t2 N} {
     set dt [expr {int(($t2-$t1)/$N)}]
+
     if {$t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
     if {$verbose} {
       puts "update_data $t1 $t2 $N $dt $name" }
@@ -195,28 +127,24 @@ itcl::class DataSource {
     set t2 [expr {$t2 + ($t2-$t1)}]
     set tmin $t1
     set tmax $t2
-    set maxdt   $dt
+    set maxdt $dt
 
-    # reset data vectors
-    if {["$this:T" length] > 0} {"$this:T" delete 0:end}
-    for {set i 0} {$i < $ncols} {incr i} {
-      if {["$this:$i" length] > 0} {"$this:$i" delete 0:end}
-    }
 
+    # clear comment data
+    xblt::xcomments::clear $graph
+
+    # add comments
     ## for a graphene db
     if {$conn ne {}} { ## graphene db
-
       foreach line [$conn cmd get_range $name $t1 $t2 $dt] {
         # append data to vectors
-        "$this:T" append [lindex $line 0]
-        for {set i 0} {$i < $ncols} {incr i} {
-          "$this:$i" append [lindex $line [expr $i+1]]
-        }
+        set t [lindex $line 0]
+        set text {}
+        append text {*}[lrange $line 1 end]
+        xblt::xcomments::create $graph $t $text
       }
-
     ## for a text file
     } else {
-
       # open and read the file line by line
       set fp [open $name r ]
       set to {}
@@ -233,16 +161,29 @@ itcl::class DataSource {
         set to $t
 
         # append data to vectors
-        "$this:T" append $t
-        for {set i 0} {$i < $ncols} {incr i} {
-          "$this:$i" append [lindex $line [expr $i+1]]
-        }
+        set text {}
+        append text {*}[lrange $line 1 end]
+        xblt::xcomments::create $graph $t $text
       }
       close $fp
     }
+  }
 
+  method on_add {t text} {
+    if {$conn ne {}} { ## graphene db
+      $conn cmd put $name $t $text
+      $conn cmd sync
+    } else {
+    }
+  }
+
+  method on_del {t text} {
+    if {$conn ne {}} { ## graphene db
+      $conn cmd del $name $t
+      $conn cmd sync
+    } else {
+    }
   }
 
   ######################################################################
-  method get_ncols {} { return $ncols }
 }

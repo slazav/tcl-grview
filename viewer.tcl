@@ -22,6 +22,7 @@ itcl::class viewer {
   variable graph
   variable mwid
   variable swid
+  private variable goto_val {}
 
   variable maxwidth;  # max window size
   variable update_interval;
@@ -56,6 +57,12 @@ itcl::class viewer {
       -interval  $update_interval\
       -update_proc [list $this update]\
 
+    ## goto window
+    label $mwid.goto_l -text "Go to date: "
+    entry $mwid.goto -width 20 -textvariable [itcl::scope goto_val]
+    bind $mwid.goto <Return> [list $this goto {}]
+    pack $mwid.goto   -side right -padx 2
+    pack $mwid.goto_l -side right -padx 2
 
     ## scrollbar
     scrollbar $swid -orient horizontal
@@ -152,13 +159,14 @@ itcl::class viewer {
   }
 
   method goto {date} {
-    set t1 [clock scan $date]
+    if {$date=={}} {set date $goto_val}
     if     {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\S+\d{1,2}} $date]} { set dt 60}\
     elseif {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}$} $date]} { set dt 3600}\
     elseif {[ regexp {^\d{4}-\d{1,2}-\d{1,2}$} $date]} { set dt [expr 24*3600]}\
-    elseif {[ regexp {^\d{4}-{1,2}$} $date]} {set dt [expr 12*24*3600]; set t1 "$t1-01"}\
-    elseif {[ regexp {^\d{4}$} $date]} { set dt [expr 366*24*3600]}\
+    elseif {[ regexp {^\d{4}-\d{1,2}$} $date]} {set dt [expr 12*24*3600]; set date "$date-01"}\
+    elseif {[ regexp {^\d{4}$} $date]} { set dt [expr 366*24*3600]; set date "$date-01-01"}\
     else { full_scale; return }
+    set t1 [clock scan $date]
     puts "goto $t1 [expr $t1+$dt]"
     $graph axis configure x -min $t1 -max [expr $t1+$dt]
   }

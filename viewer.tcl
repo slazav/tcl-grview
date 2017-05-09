@@ -113,7 +113,7 @@ itcl::class viewer {
     expand_range {*}[$comm_source range]
   }
 
-  ## expand global range
+  ## expand plot range
   method expand_range {min max} {
     set mino [$graph axis cget x -scrollmin]
     set maxo [$graph axis cget x -scrollmax]
@@ -136,28 +136,32 @@ itcl::class viewer {
   }
 
   ## This function is called after zooming the graph.
-  ## It loads data, but did not update plot limits.
+  ## It loads data, but did not update data limits.
   method on_change {x1 x2 t1 t2 w} {
     foreach d $data_sources { $d update_data $t1 $t2 $w }
     if {$comm_source!={}} { $comm_source update_data $t1 $t2 $w }
   }
 
-
   ## This function is called from autoupdater
   method update {} {
+    # expand plot limits to the current time
     set now [expr [clock milliseconds]/1000.0]
     expand_range {} $now
+    # update data limits
     foreach d $data_sources { $d reset_data_info}
     if {$comm_source!={}} { $comm_source reset_data_info }
+    # scroll the plot to the right limit
     xblt::scroll::cmd moveto 1
   }
 
+  ## Zoom to full range
   method full_scale {} {
     set min [$graph axis cget x -scrollmin]
     set max [$graph axis cget x -scrollmax]
     $graph axis configure x -min $min -max $max
   }
 
+  ## goto year, month, day, hour
   method goto {date} {
     if {$date=={}} {set date $goto_val}
     if     {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\S+\d{1,2}} $date]} { set dt 60}\

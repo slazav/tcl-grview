@@ -261,7 +261,7 @@ itcl::class DataSource {
   }
 
   ######################################################################
-
+  ## save all data in the range to a file
   method save_file {fname t1 t2} {
     set fp [::open $fname w]
     puts $fp "# time, [join $cnames {, }]"
@@ -273,6 +273,55 @@ itcl::class DataSource {
     }
     close $fp
   }
+
+  ######################################################################
+  ## fit all data in the range
+
+  ## now only mean value is calculated
+  method fit_data {t1 t2} {
+
+    set t0 {};   # "zero time"
+    if {$conn ne {}} { ## graphene db
+      foreach line [$conn cmd get_range $name $t1 $t2] {
+        # get time point
+        if {[llength $line]<1} continue
+        set t [lindex $line 0]
+
+        # save initial value if needed, subtract it from all data points
+        if {$t0=={}} { set t0 $t }
+        set t [expr {$t-$t0}]
+
+        for {set i 0} {$i<$ncols} {incr i} {
+          # get data point
+          if {[llength $line]<=[expr $i+1]} continue
+          set val [lindex $line [expr $i+1]]
+
+          # save initial value if needed, subtract it from all data points
+          if {![info exists val0($i)]} { set val0($i) $val }
+          set val [expr {$val-$val0($i)}]
+
+          # add value to sum
+          if {![info exists sum0($i)]} { set sum0($i) $val }\
+          else { set sum0($i) [expr {$val+$sum0($i)}] }
+
+          # add 1 to num
+          if {![info exists num0($i)]} { set num0($i) 1 }\
+          else { incr num0($i) }
+        }
+      }
+    }
+    set res {}
+    for {set i 0} {$i<$ncols} {incr i} {
+      if {[info exists val0($i)] &&\
+          [info exists sum0($i)] &&\
+          [info exists num0($i)]} {
+        lappend res [expr {1.0*$sum0($i)/$num0($i)+$val0($i)}]
+      }\
+      else { lappend res NaN }
+    }
+    return $res
+  }
+
 
   ######################################################################
   method get_ncols {} { return $ncols }

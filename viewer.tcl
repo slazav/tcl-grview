@@ -101,10 +101,10 @@ itcl::class viewer {
     bind $rangemenu <Unmap> [list $this on_rangemenu_close]
     $rangemenu add command -label "Zoom" -command [list $this on_range_zoom]
     $rangemenu add command -label "Save data to file" -command [list $this on_range_save]
+    $rangemenu add command -label "Fit data"          -command [list $this on_range_fit]
     $rangemenu add separator
     $rangemenu add command -label "Delete data"       -command [list $this on_range_del_data]
     $rangemenu add command -label "Delete comments"   -command [list $this on_range_del_comm]
-
 
     bind . <Alt-Key-q>     "$this finish"
     bind . <Control-Key-q> "$this finish"
@@ -234,6 +234,12 @@ itcl::class viewer {
     if {$fname != {}} {
       foreach d $data_sources { $d save_file ${fname}_${d} $t1 $t2 }
     }
+    $graph marker configure rangemarker -hide 1
+  }
+
+  method on_range_fit {} {
+    $graph marker configure rangemarker -hide 0
+    foreach d $data_sources { puts [$d fit_data $t1 $t2] }
     $graph marker configure rangemarker -hide 1
   }
 

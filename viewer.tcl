@@ -100,9 +100,10 @@ itcl::class viewer {
     set rangemenu [menu $graph.rangemenu -tearoff 0]
     bind $rangemenu <Unmap> [list $this on_rangemenu_close]
     $rangemenu add command -label "Zoom" -command [list $this on_range_zoom]
+    $rangemenu add command -label "Save data to file" -command [list $this on_range_save]
     $rangemenu add separator
-    $rangemenu add command -label "Delete data"     -command [list $this on_range_del_data]
-    $rangemenu add command -label "Delete comments" -command [list $this on_range_del_comm]
+    $rangemenu add command -label "Delete data"       -command [list $this on_range_del_data]
+    $rangemenu add command -label "Delete comments"   -command [list $this on_range_del_comm]
 
 
     bind . <Alt-Key-q>     "$this finish"
@@ -223,6 +224,15 @@ itcl::class viewer {
     $graph marker configure rangemarker -hide 0
     if {[tk_messageBox -type yesno -message "Delete all comments in the range?"] == "yes"} {
       if {$comm_source!={}} { $comm_source delete_range $t1 $t2 }
+    }
+    $graph marker configure rangemarker -hide 1
+  }
+
+  method on_range_save {} {
+    $graph marker configure rangemarker -hide 0
+    set fname [tk_getSaveFile]
+    if {$fname != {}} {
+      foreach d $data_sources { $d save_file ${fname}_${d} $t1 $t2 }
     }
     $graph marker configure rangemarker -hide 1
   }

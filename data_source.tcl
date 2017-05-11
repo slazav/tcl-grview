@@ -261,5 +261,19 @@ itcl::class DataSource {
   }
 
   ######################################################################
+
+  method save_file {fname t1 t2} {
+    set fp [::open $fname w]
+    puts $fp "# time, [join $cnames {, }]"
+
+    if {$conn ne {}} { ## graphene db
+      foreach line [$conn cmd get_range $name $t1 $t2] {
+        puts $fp $line
+      }
+    }
+    close $fp
+  }
+
+  ######################################################################
   method get_ncols {} { return $ncols }
 }

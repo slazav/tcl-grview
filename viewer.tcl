@@ -1,5 +1,3 @@
-#!/usr/bin/wish
-
 package require Itcl
 package require ParseOptions 2.0
 package require xBlt 3
@@ -97,12 +95,14 @@ itcl::class viewer {
       -invtransformx x\
       -command "$this show_rangemenu"\
       -cancelbutton ""
-
+    $graph marker create polygon -name rangemarker -dashes 5 -fill "" \
+        -linewidth 2 -mapx x -mapy xblt::unity -outline blue -hide 1
     set rangemenu [menu $graph.rangemenu -tearoff 0]
-    $rangemenu add command -label "Zoom" -command [list $this on_rangemenu zoom]
+    bind $rangemenu <Unmap> [list $this on_rangemenu_close]
+    $rangemenu add command -label "Zoom" -command [list $this on_range_zoom]
     $rangemenu add separator
-    $rangemenu add command -label "Delete data"     -command [list $this on_rangemenu del_data]
-    $rangemenu add command -label "Delete comments" -command [list $this on_rangemenu del_comm]
+    $rangemenu add command -label "Delete data"     -command [list $this on_range_del_data]
+    $rangemenu add command -label "Delete comments" -command [list $this on_range_del_comm]
 
 
     bind . <Alt-Key-q>     "$this finish"
@@ -199,34 +199,32 @@ itcl::class viewer {
   method show_rangemenu {graph x1 x2 y1 y2} {
     set t1 $x1
     set t2 $x2
-    $graph marker create polygon -name rangemarker -dashes 5 -fill "" \
-        -linewidth 2 -mapx x -mapy xblt::unity\
-        -coords "$x1 0 $x1 1 $x2 1 $x2 0" -outline blue
+    $graph marker configure rangemarker -hide 0 -coords "$x1 0 $x1 1 $x2 1 $x2 0" 
     tk_popup $rangemenu [winfo pointerx .p] [winfo pointery .p]
   }
 
-  method on_rangemenu {action} {
-
-    if {$action == {zoom}} {
-      $graph axis configure x -min $t1 -max $t2
-    }\
-    elseif {$action == {del_data}} {
-      if {[tk_messageBox -type yesno -message "Delete all data in the range?"] == "yes"} {
-        foreach d $data_sources { $d delete_range $t1 $t2 }
-      }
-    }\
-    elseif {$action == {del_comm}} {
-      if {[tk_messageBox -type yesno -message "Delete all comments in the range?"] == "yes"} {
-        if {$comm_source!={}} { $comm_source delete_range $t1 $t2 }
-      }
-    }
-    $graph marker delete rangemarker
+  method on_rangemenu_close {} {
+    $graph marker configure rangemarker -hide 1
   }
 
-  method on_del_comm {} {
+  method on_range_zoom {} {
+    $graph axis configure x -min $t1 -max $t2
+  }
+
+  method on_range_del_data {} {
+    $graph marker configure rangemarker -hide 0
+    if {[tk_messageBox -type yesno -message "Delete all data in the range?"] == "yes"} {
+      foreach d $data_sources { $d delete_range $t1 $t2 }
+    }
+    $graph marker configure rangemarker -hide 1
+  }
+
+  method on_range_del_comm {} {
+    $graph marker configure rangemarker -hide 0
     if {[tk_messageBox -type yesno -message "Delete all comments in the range?"] == "yes"} {
       if {$comm_source!={}} { $comm_source delete_range $t1 $t2 }
     }
+    $graph marker configure rangemarker -hide 1
   }
 
   ######################################################################

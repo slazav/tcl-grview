@@ -1,11 +1,9 @@
+package provide GrapheneViewer 1.0
+
 package require Itcl
 package require ParseOptions 2.0
 package require xBlt 3
 package require Device
-
-source data_source.tcl
-source comm_source.tcl
-source autoupdater.tcl
 
 namespace eval graphene {
 

@@ -160,14 +160,18 @@ itcl::class viewer {
     # expand plot limits to the current time
     set now [expr [clock milliseconds]/1000.0]
     expand_range {} $now
-    # update data limits
-    foreach d $data_sources { $d reset_data_info}
-    if {$comm_source!={}} { $comm_source reset_data_info }
 
     set ll [$graph axis limits x]
     set min [lindex $ll 0]
     set max [lindex $ll 1]
-    $graph axis configure x -min [expr {$min + $now-$max}] -max $now
+    set min [expr {$min + $now-$max}]
+    set max $now
+    $graph axis configure x -min $min -max $max
+
+    # update data
+    foreach d $data_sources { $d scroll $min $max }
+    if {$comm_source!={}} { $comm_source scroll $min $max }
+
   }
 
   ## Zoom to full range

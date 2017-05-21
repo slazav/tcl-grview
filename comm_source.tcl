@@ -170,6 +170,16 @@ itcl::class CommSource {
     }
   }
 
+  ######################################################################
+  method scroll {t1 t2} {
+    set N [expr {int(($tmax-$tmin)/$maxdt)}]
+    reset_data_info
+    update_data $t1 $t2 $N
+  }
+
+  ######################################################################
+
+
   method on_add {t text} {
     if {$conn ne {}} { ## graphene db
       $conn cmd put $name $t $text
@@ -196,7 +206,6 @@ itcl::class CommSource {
       update_data $tmin $tmax $N
     }
   }
-
 
   ######################################################################
 }

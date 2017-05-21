@@ -254,6 +254,52 @@ itcl::class DataSource {
     }
   }
 
+  # In a sorted vector find index of the first value larger or equal then v
+  method svec_search_l {vec v} {
+    if {[$vec length] < 1} {return -1}
+    if {[blt::vector expr max($this:T)] < $v} {return -1}
+    if {[blt::vector expr min($this:T)] > $v} {return 0}
+    set i1 0
+    set i2 [expr [$vec length]-1]
+    while {$i2-$i1 > 1} {
+      set i [expr {int(($i2+$i1)/2)}]
+      set val [$vec index $i]
+      if {$val == $v} {return $i}
+      if {$val > $v} {set i2 $i} else {set i1 $i}
+    }
+    return $i2
+  }
+
+  ######################################################################
+  method scroll {t1 t2} {
+
+    #get first and last timestamps in our vectors
+    set min [blt::vector expr min($this:T)]
+    set max [blt::vector expr max($this:T)]
+
+    if {$conn ne {}} { ## graphene db
+      foreach line [$conn cmd get_range $name $max $t2 $maxdt] {
+        set t [lindex $line 0]
+        if {t==$max} continue; # no need to insert existing value
+        # append data to vectors
+        "$this:T" append [lindex $line 0]
+        for {set i 0} {$i < $ncols} {incr i} {
+          "$this:$i" append [lindex $line [expr $i+1]]
+        }
+      }
+    }
+
+    # remove old values if it is more then tice longer then needed
+    if {$t1-$min > $t2-$t1} {
+      set ii [svec_search_l $this:T $t1]
+      if {$ii>0} {
+        $this:T delete 0:$ii-1
+        for {set i 0} {$i < $ncols} {incr i} { $this:$i delete 0:$ii-1}
+      }
+    }
+
+  }
+
   ######################################################################
   ## save all data in the range to a file
   method save_file {fname t1 t2} {

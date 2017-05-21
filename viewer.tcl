@@ -51,12 +51,12 @@ itcl::class viewer {
     autoupdater #auto\
       -state_var ::autoupdate\
       -interval  $update_interval\
-      -update_proc [list $this update]\
+      -update_proc [list $this on_update]\
 
     ## goto window
     label $mwid.goto_l -text "Go to date: "
     entry $mwid.goto -width 20 -textvariable [itcl::scope goto_val]
-    bind $mwid.goto <Return> [list $this goto {}]
+    bind $mwid.goto <Return> [list $this goto_date {}]
     pack $mwid.goto   -side right -padx 2
     pack $mwid.goto_l -side right -padx 2
 
@@ -84,7 +84,7 @@ itcl::class viewer {
     xblt::readout    $graph -variable v_readout -active 1;
     xblt::zoomstack  $graph -scrollbutton 2 -axes x -recttype x
     xblt::elemop     $graph
-    xblt::scroll     $graph $swid -on_change [list $this on_change] -timefmt 1
+    xblt::scroll     $graph $swid -on_change [list $this on_scroll] -timefmt 1
 
     ## range menu
     ## create xblt::rubberrect
@@ -137,7 +137,6 @@ itcl::class viewer {
     if {$max != {} && ($maxo=={} || $maxo < $max)} {
       $graph axis configure x -scrollmax $max
     } else {set max $maxo}
-
     # change scrollbal position
     if {$mino!={} && $maxo!={} && $min!={} && $max!={}} {
       set sb [$swid get]
@@ -151,32 +150,35 @@ itcl::class viewer {
 
   ## This function is called after zooming the graph.
   ## It loads data in a lazy way and do not update data limits.
-  method on_change {x1 x2 t1 t2 w} {
+  method on_scroll {x1 x2 t1 t2 w} {
     foreach d $data_sources { $d update_data $t1 $t2 $w }
     if {$comm_source!={}} { $comm_source update_data $t1 $t2 $w }
   }
 
   ## This function is called from autoupdater
-  method update {} {
+  method on_update {} {
     # expand plot limits to the current time
     set now [expr [clock milliseconds]/1000.0]
     expand_range {} $now
     # update data limits
     foreach d $data_sources { $d reset_data_info}
     if {$comm_source!={}} { $comm_source reset_data_info }
-    # scroll the plot to the right limit
-    xblt::scroll::cmd moveto 1
+
+    set ll [$graph axis limits x]
+    set min [lindex $ll 0]
+    set max [lindex $ll 1]
+    $graph axis configure x -min [expr {$min + $now-$max}] -max $now
   }
 
   ## Zoom to full range
   method full_scale {} {
     set min [$graph axis cget x -scrollmin]
     set max [$graph axis cget x -scrollmax]
-    $graph axis configure x -min $min -max $max
+    $graph axis configure x -min $min -max $max -stepsize 0
   }
 
   ## goto year, month, day, hour
-  method goto {date} {
+  method goto_date {date} {
     if {$date=={}} {set date $goto_val}
     if     {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\S+\d{1,2}} $date]} { set dt 60}\
     elseif {[ regexp {^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}$} $date]} { set dt 3600}\
@@ -186,7 +188,7 @@ itcl::class viewer {
     else { full_scale; return }
     set t1 [clock scan $date]
     puts "goto $t1 [expr $t1+$dt]"
-    $graph axis configure x -min $t1 -max [expr $t1+$dt]
+    $graph axis configure x -min $t1 -max [expr $t1+$dt] -stepsize 0
   }
 
   ######################################################################
@@ -207,7 +209,7 @@ itcl::class viewer {
   }
 
   method on_range_zoom {} {
-    $graph axis configure x -min $t1 -max $t2
+    $graph axis configure x -min $t1 -max $t2 -stepsize 0
   }
 
   method on_range_del_data {} {

@@ -185,8 +185,8 @@ itcl::class DataSource {
   ######################################################################
   # update data
   method update_data {t1 t2 N} {
-    set dt [expr {int(($t2-$t1)/$N)}]
-    if {$t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
+    set dt [expr {1.0*($t2-$t1)/$N}]
+    if {$tmin!=$tmax && $t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
     if {$verbose} {
       puts "update_data $t1 $t2 $N $dt $name" }
 
@@ -242,21 +242,15 @@ itcl::class DataSource {
     }
   }
 
-  # reread data
-  method reread_data {} {
-    set t1 $tmin
-    set t2 $tmax
-    set N [expr {int(($tmax-$tmin)/$maxdt)}]
-    reset_data_info
-    update_data $t1 $t2 $N
-  }
-
   ######################################################################
   method delete_range {t1 t2} {
     if {$conn ne {}} { ## graphene db
       $conn cmd del_range $name $t1 $t2
       $conn cmd sync
-      reread_data
+      # reread data
+      set N [expr {int(($tmax-$tmin)/$maxdt)}]
+      reset_data_info
+      update_data $tmin $tmax $N
     }
   }
 

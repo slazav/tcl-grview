@@ -116,7 +116,7 @@ itcl::class CommSource {
   ######################################################################
   # update data
   method update_data {t1 t2 N} {
-    set dt [expr {int(($t2-$t1)/$N)}]
+    set dt [expr {1.0*($t2-$t1)/$N}]
 
     if {$t1 >= $tmin && $t2 <= $tmax && $dt >= $maxdt} {return}
     if {$verbose} {
@@ -136,6 +136,7 @@ itcl::class CommSource {
     # add comments
     ## for a graphene db
     if {$conn ne {}} { ## graphene db
+
       foreach line [$conn cmd get_range $name $t1 $t2 $dt] {
         # append data to vectors
         set t [lindex $line 0]
@@ -169,15 +170,6 @@ itcl::class CommSource {
     }
   }
 
-  # reread data
-  method reread_data {} {
-    set t1 $tmin
-    set t2 $tmax
-    set N [expr {int(($tmax-$tmin)/$maxdt)}]
-    reset_data_info
-    update_data $t1 $t2 $N
-  }
-
   method on_add {t text} {
     if {$conn ne {}} { ## graphene db
       $conn cmd put $name $t $text
@@ -198,7 +190,10 @@ itcl::class CommSource {
     if {$conn ne {}} { ## graphene db
       $conn cmd del_range $name $t1 $t2
       $conn cmd sync
-      reread_data
+      # reread data
+      set N [expr {int(($tmax-$tmin)/$maxdt)}]
+      reset_data_info
+      update_data $tmin $tmax $N
     }
   }
 

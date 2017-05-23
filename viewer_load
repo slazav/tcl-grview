@@ -1,6 +1,10 @@
 #!/usr/bin/wish
 
-package require GrapheneViewer 1.0
+#package require GrapheneViewer 1.0
+source ./viewer.tcl
+source ./autoupdater.tcl
+source ./data_source.tcl
+source ./comm_source.tcl
 
 set db_dev db_local
 Device $db_dev

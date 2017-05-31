@@ -2,7 +2,7 @@
 %define major 1.0
 
 Name: tcl-grview
-Version: 1.0
+Version: %major
 Release: alt1
 BuildArch: noarch
 

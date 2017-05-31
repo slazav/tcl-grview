@@ -1,5 +1,4 @@
 package require Itcl
-package require ParseOptions 2.0
 package require xBlt
 
 # set graphene of text comment source,
@@ -31,12 +30,12 @@ itcl::class CommSource {
   constructor {graph_ args} {
     # parse options
     set opts {
-      -name    name    {} {file/db name}
-      -conn    conn    {} {graphene connection for a database source}
-      -verbose verbose 1  {be verbose}
+      -name    name    {}
+      -conn    conn    {}
+      -verbose verbose  1
     }
     set graph $graph_
-    if {[catch {parse_options "graphene::comment_source" \
+    if {[catch {xblt::parse_options "graphene::comment_source" \
       $args $opts} err]} { error $err }
 
     if {$verbose} {

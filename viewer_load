@@ -6,7 +6,7 @@ source ./autoupdater.tcl
 source ./data_source.tcl
 source ./comm_source.tcl
 
-set db_dev db_local
+set db_dev db
 Device $db_dev
 graphene::viewer viewer
 

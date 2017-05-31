@@ -1,6 +1,9 @@
 #!/usr/bin/wish
 
 source viewer.tcl
+source ./autoupdater.tcl
+source ./data_source.tcl
+source ./comm_source.tcl
 
 set db_dev db_exp
 Device $db_dev
